@@ -245,8 +245,7 @@ export default function SignQuoteClient() {
                         <div className="card">
                             <h2 className="text-xl font-semibold mb-6">Signature</h2>
                             <SignaturePad
-                                onSign={(data) => setSignature(data)}
-                                onClear={() => setSignature(null)}
+                                onSignatureChange={(data) => setSignature(data)}
                             />
                         </div>
 
