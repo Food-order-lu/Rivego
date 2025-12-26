@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@docuseal/react": "^1.0.70",
     "@hookform/resolvers": "^5.2.2",
     "@react-pdf/renderer": "^4.3.1",
     "jose": "^6.1.3",

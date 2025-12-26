@@ -14,36 +14,41 @@ export interface QuoteData {
     quoteNumber: string;
     quoteDate: string;
     validUntil: string;
+    // Company
     companyName: string;
     companyAddress: string;
     companyVat: string;
     companyEmail: string;
+    // Client
     clientName: string;
     clientCompany: string;
     clientAddress: string;
     clientEmail: string;
-    clientPhone: string;
+    clientPhone?: string;
     clientVat?: string;
+    // Service
     serviceName: string;
     planName: string;
     planDescription: string;
-    lineItems: QuoteLineItem[];
-    subtotal: number;
-    discountPercent: number;
-    discountAmount: number;
+    // Line Items - separated
+    oneTimeItems: QuoteLineItem[];
+    monthlyItems: QuoteLineItem[];
+    // Totals
+    oneTimeTotal: number;
+    monthlyTotal: number;
     vatRate: number;
     vatAmount: number;
     totalTtc: number;
+    depositPercent: number;
     depositAmount: number;
-    showDeposit?: boolean;
-    total: number; // This is the HT total
+    // Meta
     notes?: string;
     paymentTerms: string;
     signatureImage?: string;
     signedDate?: string;
 }
 
-// Compact styles for single-page layout
+// Styles matching the uploaded design
 const styles = StyleSheet.create({
     page: {
         padding: 30,
@@ -55,29 +60,30 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 15,
+        marginBottom: 20,
         paddingBottom: 10,
         borderBottomWidth: 2,
         borderBottomColor: '#1A3A5C',
     },
     logo: {
-        fontSize: 22,
+        fontSize: 24,
         fontFamily: 'Helvetica-Bold',
         color: '#1A3A5C',
     },
     logoSubtitle: {
-        fontSize: 7,
-        color: '#666666',
-        letterSpacing: 1.5,
+        fontSize: 8,
+        color: '#0D7377',
+        letterSpacing: 2,
+        marginTop: 2,
     },
     quoteInfo: {
         textAlign: 'right',
     },
     quoteTitle: {
-        fontSize: 16,
+        fontSize: 18,
         fontFamily: 'Helvetica-Bold',
         color: '#1A1A1A',
-        marginBottom: 3,
+        marginBottom: 4,
     },
     quoteNumber: {
         fontSize: 9,
@@ -86,70 +92,80 @@ const styles = StyleSheet.create({
     quoteDate: {
         fontSize: 8,
         color: '#666666',
-        marginTop: 1,
+        marginTop: 2,
     },
 
-    // Parties section - side by side
+    // Parties section
     partiesSection: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 12,
+        marginBottom: 15,
     },
     partyBox: {
         width: '48%',
-        padding: 10,
-        backgroundColor: '#F8F9FA',
+        padding: 12,
+        backgroundColor: '#F5F7FA',
         borderRadius: 4,
     },
     partyTitle: {
         fontSize: 8,
         fontFamily: 'Helvetica-Bold',
-        color: '#1A3A5C',
+        color: '#0D7377',
         marginBottom: 6,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
     },
     partyName: {
-        fontSize: 10,
+        fontSize: 11,
         fontFamily: 'Helvetica-Bold',
         color: '#1A1A1A',
-        marginBottom: 3,
+        marginBottom: 4,
     },
     partyDetail: {
         fontSize: 8,
         color: '#666666',
-        marginBottom: 1,
+        marginBottom: 2,
     },
 
     // Service banner
     serviceBox: {
-        padding: 10,
+        padding: 12,
         backgroundColor: '#1A3A5C',
         borderRadius: 4,
-        marginBottom: 12,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        marginBottom: 15,
     },
     serviceName: {
-        fontSize: 11,
+        fontSize: 12,
         fontFamily: 'Helvetica-Bold',
         color: '#FFFFFF',
     },
     serviceDescription: {
-        fontSize: 8,
+        fontSize: 9,
         color: '#FFFFFF',
-        opacity: 0.8,
+        opacity: 0.85,
+        marginTop: 2,
+    },
+
+    // Section title
+    sectionTitle: {
+        fontSize: 9,
+        fontFamily: 'Helvetica-Bold',
+        color: '#1A3A5C',
+        marginBottom: 8,
+        marginTop: 10,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
     },
 
     // Table
     table: {
-        marginBottom: 12,
+        marginBottom: 8,
     },
     tableHeader: {
         flexDirection: 'row',
-        backgroundColor: '#1A1A1A',
-        padding: 6,
+        backgroundColor: '#1A3A5C',
+        paddingVertical: 8,
+        paddingHorizontal: 10,
     },
     tableHeaderText: {
         color: '#FFFFFF',
@@ -160,55 +176,87 @@ const styles = StyleSheet.create({
     tableRow: {
         flexDirection: 'row',
         borderBottomWidth: 1,
-        borderBottomColor: '#E0E0E0',
-        padding: 6,
+        borderBottomColor: '#E8E8E8',
+        paddingVertical: 8,
+        paddingHorizontal: 10,
     },
     tableRowAlt: {
         backgroundColor: '#FAFAFA',
     },
     colDescription: { width: '50%' },
-    colQty: { width: '12%', textAlign: 'center' },
-    colPrice: { width: '19%', textAlign: 'right' },
-    colTotal: { width: '19%', textAlign: 'right' },
+    colQty: { width: '15%', textAlign: 'center' },
+    colPrice: { width: '17.5%', textAlign: 'right' },
+    colTotal: { width: '17.5%', textAlign: 'right' },
     cellText: {
         fontSize: 9,
         color: '#333333',
     },
+    cellTextBold: {
+        fontSize: 9,
+        color: '#333333',
+        fontFamily: 'Helvetica-Bold',
+    },
 
-    // Bottom section - totals and terms side by side
+    // Table totals row
+    tableTotalRow: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        paddingVertical: 8,
+        paddingHorizontal: 10,
+    },
+    tableTotalLabel: {
+        fontSize: 9,
+        color: '#666666',
+        marginRight: 20,
+    },
+    tableTotalValue: {
+        fontSize: 10,
+        fontFamily: 'Helvetica-Bold',
+        color: '#1A3A5C',
+    },
+    monthlyTotalValue: {
+        fontSize: 10,
+        fontFamily: 'Helvetica-Bold',
+        color: '#0D7377',
+    },
+
+    // Bottom section
     bottomSection: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+        marginTop: 15,
     },
 
     // Terms on left
     termsSection: {
-        width: '55%',
-        padding: 10,
-        backgroundColor: '#F8F9FA',
+        width: '48%',
+    },
+    termsBox: {
+        padding: 12,
+        backgroundColor: '#F5F7FA',
         borderRadius: 4,
     },
     termsTitle: {
-        fontSize: 8,
+        fontSize: 9,
         fontFamily: 'Helvetica-Bold',
         color: '#1A1A1A',
-        marginBottom: 4,
+        marginBottom: 6,
     },
     termsText: {
-        fontSize: 7,
+        fontSize: 8,
         color: '#666666',
-        lineHeight: 1.4,
+        lineHeight: 1.5,
     },
 
     // Totals on right
     totalsSection: {
-        width: '40%',
+        width: '48%',
     },
     totalRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        paddingVertical: 4,
-        paddingHorizontal: 8,
+        paddingVertical: 5,
+        paddingHorizontal: 10,
     },
     totalLabel: {
         fontSize: 9,
@@ -219,18 +267,11 @@ const styles = StyleSheet.create({
         color: '#333333',
         fontFamily: 'Helvetica-Bold',
     },
-    discountRow: {
-        backgroundColor: '#FFF0F0',
-        borderRadius: 2,
-    },
-    discountText: {
-        color: '#E53935',
-    },
     grandTotalRow: {
         backgroundColor: '#1A3A5C',
         borderRadius: 4,
         marginTop: 4,
-        paddingVertical: 8,
+        paddingVertical: 10,
     },
     grandTotalLabel: {
         fontSize: 10,
@@ -238,14 +279,29 @@ const styles = StyleSheet.create({
         fontFamily: 'Helvetica-Bold',
     },
     grandTotalValue: {
-        fontSize: 12,
+        fontSize: 14,
         color: '#FFFFFF',
+        fontFamily: 'Helvetica-Bold',
+    },
+    depositRow: {
+        backgroundColor: '#E8F4F4',
+        borderRadius: 4,
+        marginTop: 4,
+    },
+    depositLabel: {
+        fontSize: 9,
+        color: '#0D7377',
+        fontFamily: 'Helvetica-Bold',
+    },
+    depositValue: {
+        fontSize: 10,
+        color: '#0D7377',
         fontFamily: 'Helvetica-Bold',
     },
 
     // Signature section
     signatureSection: {
-        marginTop: 15,
+        marginTop: 25,
         flexDirection: 'row',
         justifyContent: 'space-between',
     },
@@ -253,15 +309,16 @@ const styles = StyleSheet.create({
         width: '45%',
     },
     signatureLabel: {
-        fontSize: 8,
-        color: '#666666',
-        marginBottom: 3,
+        fontSize: 9,
+        fontFamily: 'Helvetica-Bold',
+        color: '#333333',
+        marginBottom: 4,
     },
     signatureLine: {
         borderBottomWidth: 1,
         borderBottomColor: '#333333',
-        height: 35,
-        marginBottom: 3,
+        height: 40,
+        marginBottom: 4,
     },
     signatureNote: {
         fontSize: 7,
@@ -321,53 +378,78 @@ export const QuotePDF = ({ data }: { data: QuoteData }) => (
 
             {/* Service Banner */}
             <View style={styles.serviceBox}>
-                <View>
-                    <Text style={styles.serviceName}>{data.serviceName} - {data.planName}</Text>
-                    <Text style={styles.serviceDescription}>{data.planDescription}</Text>
-                </View>
+                <Text style={styles.serviceName}>{data.serviceName} - {data.planName}</Text>
+                <Text style={styles.serviceDescription}>{data.planDescription}</Text>
             </View>
 
-            {/* Items Table */}
+            {/* One-Time Items Table */}
+            <Text style={styles.sectionTitle}>Frais Uniques (Installation & Setup)</Text>
             <View style={styles.table}>
                 <View style={styles.tableHeader}>
                     <Text style={[styles.tableHeaderText, styles.colDescription]}>Description</Text>
                     <Text style={[styles.tableHeaderText, styles.colQty]}>Qté</Text>
-                    <Text style={[styles.tableHeaderText, styles.colPrice]}>Prix unit.</Text>
+                    <Text style={[styles.tableHeaderText, styles.colPrice]}>Prix Unit.</Text>
                     <Text style={[styles.tableHeaderText, styles.colTotal]}>Total</Text>
                 </View>
 
-                {data.lineItems.map((item, index) => (
-                    <View key={index} style={[styles.tableRow, index % 2 === 0 ? styles.tableRowAlt : {}]}>
+                {data.oneTimeItems.map((item, index) => (
+                    <View key={index} style={[styles.tableRow, index % 2 !== 0 ? styles.tableRowAlt : {}]}>
                         <Text style={[styles.cellText, styles.colDescription]}>{item.description}</Text>
                         <Text style={[styles.cellText, styles.colQty]}>{item.quantity}</Text>
                         <Text style={[styles.cellText, styles.colPrice]}>{item.unitPrice.toFixed(2)} €</Text>
-                        <Text style={[styles.cellText, styles.colTotal]}>{item.total.toFixed(2)} €</Text>
+                        <Text style={[styles.cellTextBold, styles.colTotal]}>{item.total.toFixed(2)} €</Text>
                     </View>
                 ))}
+
+                <View style={styles.tableTotalRow}>
+                    <Text style={styles.tableTotalLabel}>Total Unique HT:</Text>
+                    <Text style={styles.tableTotalValue}>{data.oneTimeTotal.toFixed(2)} €</Text>
+                </View>
+            </View>
+
+            {/* Monthly Items Table */}
+            <Text style={styles.sectionTitle}>Frais Mensuels (Récurrents)</Text>
+            <View style={styles.table}>
+                <View style={styles.tableHeader}>
+                    <Text style={[styles.tableHeaderText, styles.colDescription]}>Description</Text>
+                    <Text style={[styles.tableHeaderText, styles.colQty]}>Qté</Text>
+                    <Text style={[styles.tableHeaderText, styles.colPrice]}>Prix Unit.</Text>
+                    <Text style={[styles.tableHeaderText, styles.colTotal]}>Total</Text>
+                </View>
+
+                {data.monthlyItems.map((item, index) => (
+                    <View key={index} style={[styles.tableRow, index % 2 !== 0 ? styles.tableRowAlt : {}]}>
+                        <Text style={[styles.cellText, styles.colDescription]}>{item.description}</Text>
+                        <Text style={[styles.cellText, styles.colQty]}>{item.quantity}</Text>
+                        <Text style={[styles.cellText, styles.colPrice]}>{item.unitPrice.toFixed(2)} €</Text>
+                        <Text style={[styles.cellTextBold, styles.colTotal]}>{item.total.toFixed(2)} €</Text>
+                    </View>
+                ))}
+
+                <View style={styles.tableTotalRow}>
+                    <Text style={styles.tableTotalLabel}>Total Mensuel:</Text>
+                    <Text style={styles.monthlyTotalValue}>{data.monthlyTotal.toFixed(2)} € / mois</Text>
+                </View>
             </View>
 
             {/* Bottom Section: Terms + Totals */}
             <View style={styles.bottomSection}>
                 {/* Terms */}
                 <View style={styles.termsSection}>
-                    <Text style={styles.termsTitle}>Conditions de paiement</Text>
-                    <Text style={styles.termsText}>{data.paymentTerms}</Text>
-                    {data.notes && (
-                        <>
-                            <Text style={[styles.termsTitle, { marginTop: 6 }]}>Notes</Text>
-                            <Text style={styles.termsText}>{data.notes}</Text>
-                        </>
-                    )}
-                    <Text style={[styles.termsText, { marginTop: 6, fontStyle: 'italic' }]}>
-                        {data.vatRate === 0 && data.clientVat ? 'Autoliquidation - Art. 196 de la Directive 2006/112/CE (Reverse Charge)' : 'TVA au taux de ' + data.vatRate + '% comprise.'}
-                    </Text>
+                    <View style={styles.termsBox}>
+                        <Text style={styles.termsTitle}>Conditions de paiement</Text>
+                        <Text style={styles.termsText}>{data.paymentTerms}</Text>
+                        <Text style={[styles.termsText, { marginTop: 8, fontStyle: 'italic' }]}>
+                            TVA au taux de {data.vatRate}% comprise.
+                        </Text>
+                    </View>
                 </View>
 
                 {/* Totals */}
                 <View style={styles.totalsSection}>
                     <View style={styles.totalRow}>
-                        <Text style={styles.totalLabel}>Sous-total HT</Text>
-                        <Text style={styles.totalValue}>{data.total.toFixed(2)} €</Text>
+                        <Text style={styles.totalLabel}>Sous-total Unique HT</Text>
+                        <Text style={styles.totalValue}>{data.oneTimeTotal.toFixed(2)} €</Text>
                     </View>
 
                     <View style={styles.totalRow}>
@@ -376,16 +458,14 @@ export const QuotePDF = ({ data }: { data: QuoteData }) => (
                     </View>
 
                     <View style={[styles.totalRow, styles.grandTotalRow]}>
-                        <Text style={styles.grandTotalLabel}>TOTAL TTC</Text>
+                        <Text style={styles.grandTotalLabel}>TOTAL UNIQUE TTC</Text>
                         <Text style={styles.grandTotalValue}>{data.totalTtc.toFixed(2)} €</Text>
                     </View>
 
-                    {data.showDeposit && (
-                        <View style={[styles.totalRow, { marginTop: 4, paddingVertical: 4, borderTopWidth: 1, borderTopColor: '#E0E0E0' }]}>
-                            <Text style={[styles.totalLabel, { fontFamily: 'Helvetica-Bold' }]}>Acompte 20%</Text>
-                            <Text style={[styles.totalValue, { color: '#0D7377' }]}>{data.depositAmount.toFixed(2)} €</Text>
-                        </View>
-                    )}
+                    <View style={[styles.totalRow, styles.depositRow]}>
+                        <Text style={styles.depositLabel}>Acompte {data.depositPercent}%</Text>
+                        <Text style={styles.depositValue}>{data.depositAmount.toFixed(2)} €</Text>
+                    </View>
                 </View>
             </View>
 
@@ -394,7 +474,7 @@ export const QuotePDF = ({ data }: { data: QuoteData }) => (
                 <View style={styles.signatureBox}>
                     <Text style={styles.signatureLabel}>Signature client</Text>
                     {data.signatureImage ? (
-                        <View style={{ height: 40, marginBottom: 3 }}>
+                        <View style={{ height: 40, marginBottom: 4 }}>
                             <Image src={data.signatureImage} style={{ height: 35, objectFit: 'contain' }} />
                         </View>
                     ) : (
