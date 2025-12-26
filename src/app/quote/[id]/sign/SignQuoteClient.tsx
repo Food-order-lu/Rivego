@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import {
     CheckCircle,
@@ -60,26 +60,18 @@ export default function SignQuoteClient({ demoQuote: initialQuote }: { demoQuote
     const [showMobileModal, setShowMobileModal] = useState(false);
     const [currentUrl, setCurrentUrl] = useState('');
 
+    // State for dynamic DocuSeal session
+    const [loadingSrc, setLoadingSrc] = useState(true);
+    const [docuSealSrc, setDocuSealSrc] = useState<string | null>(null);
+
     useEffect(() => {
         if (typeof window !== 'undefined') {
             setCurrentUrl(window.location.href);
         }
     }, []);
 
-    // Using direct link as requested by user snippet
-    const docuSealSrc = "https://docuseal.com/d/NaZif3BS7bNSkn";
-
-    const handleSignComplete = (data: any) => {
-        console.log('Signature completed:', data);
-
-        setSigned(true);
-        // In real app: call API to update quote status to "signed"
-    };
-
-    const handleDownloadContract = async () => {
-        const { generateContractPDF } = await import('@/components/pdf/ContractPDF');
-
-        // Calculate detailed financials
+    // Helper to prepare contract data
+    const getContractData = () => {
         const totalHt = quote.total;
         const vatRate = 0.17;
         const vatAmount = totalHt * vatRate;
@@ -88,59 +80,131 @@ export default function SignQuoteClient({ demoQuote: initialQuote }: { demoQuote
         const monthlyHt = 25.00;
         const monthlyTtc = monthlyHt * 1.17;
 
-        // Mock data mapping - in real app this comes from DB
-        const contractData = {
-            // Prestataire
+        // Use separate items lists if available in real data, otherwise mock splitting
+        const oneTimeItems = [
+            { description: 'Site Business', quantity: 1, unitPrice: 599, total: 599 },
+            { description: 'Photos en présentiel', quantity: 1, unitPrice: 60, total: 60 },
+            { description: 'Menu digital sur le site', quantity: 1, unitPrice: 40, total: 40 },
+            { description: 'Site multi-langues', quantity: 1, unitPrice: 30, total: 30 },
+            { description: 'Imprimante (reconditionné)', quantity: 1, unitPrice: 150, total: 150 },
+            { description: 'Router pour imprimante', quantity: 1, unitPrice: 40, total: 40 },
+        ];
+
+        const monthlyItems = [
+            { description: 'Hébergement & Maintenance (mensuel)', quantity: 1, unitPrice: 25, total: 25 },
+            { description: 'Système commande en ligne (mensuel)', quantity: 1, unitPrice: 60, total: 60 },
+            { description: 'Retouche photos qualité studio (IA) (mensuel)', quantity: 1, unitPrice: 60, total: 60 },
+            { description: 'Réservation de table (mensuel)', quantity: 1, unitPrice: 10, total: 10 },
+            { description: 'Chatbot site web (mensuel)', quantity: 1, unitPrice: 25, total: 25 },
+            { description: 'Traduction avis & affichage (mensuel)', quantity: 1, unitPrice: 9, total: 9 },
+        ];
+
+        return {
+            quoteNumber: quote.id,
+            quoteDate: quote.createdAt,
+            validUntil: quote.validUntil,
             companyName: quote.company.name,
             companyAddress: quote.company.address,
-            companyRcs: 'B225678', // Mock RCS
             companyVat: 'LU35916651',
-            companyEmail: 'contact@rivego.lu',
-            companyPhone: '+352 691 123 456',
-
-            // Client
-            clientType: 'Professionnel',
-            clientCompany: quote.client.company,
+            companyEmail: quote.company.email,
             clientName: quote.client.name,
+            clientCompany: quote.client.company,
             clientAddress: quote.client.address,
             clientEmail: quote.client.email,
-            clientPhone: '+352 691 999 999', // Mock phone
-            clientVat: 'LU12345678', // Mock VAT
-
-            // Service
+            clientPhone: quote.client.phone,
+            clientVat: '',
             serviceName: quote.service.name,
             planName: quote.service.plan,
-            planDescription: 'Site vitrine professionnel, responsive design, formulaire de contact, optimisation SEO de base.',
-
-            // Financials
-            oneTimeTotal: totalHt.toFixed(2),
-            oneTimeAmountTtc: totalTtc.toFixed(2),
-            monthlyAmount: monthlyHt.toFixed(2),
-            monthlyAmountTtc: monthlyTtc.toFixed(2),
-
-            // Discounts
-            discountPercent: 0,
-            discountEuros: 0,
-            discountAmount: '0.00',
-
-            // Payment Terms
-            paymentTerms: 'Virement bancaire',
-            depositPercentage: 20,
-            depositAmount: (totalTtc * 0.20).toFixed(2),
-            customPaymentTerms: undefined,
-
-            // Meta
-            contractNumber: quote.id,
+            planDescription: quote.service.description,
+            oneTimeItems: oneTimeItems,
+            monthlyItems: monthlyItems,
+            oneTimeTotal: 919.00, // Mock calc
+            monthlyTotal: 189.00, // Mock calc
+            vatRate: 17,
+            vatAmount: 156.23, // Mock calc
+            totalTtc: 1075.23, // Mock calc
+            depositPercent: 50,
+            depositAmount: 537.62,
+            paymentTerms: 'Acompte de 50% (537.62€) à la signature. Solde à la livraison.',
             notes: 'Aucune note complémentaire.',
-            signedDate: new Date().toLocaleDateString('fr-FR'),
-            signatureImage: undefined, // DocuSeal handles signature visual in their doc, this is for our generated copy
+            signedDate: undefined,
+            signatureImage: undefined,
+        };
+    };
+
+    // Initialize DocuSeal with Generated PDF
+    useEffect(() => {
+        const initDocuSeal = async () => {
+            try {
+                setLoadingSrc(true);
+                // 1. Generate PDF Blob
+                // Note: We use QuotePDF here as per user request (Devis template)
+                const { generateQuotePDF } = await import('@/components/pdf/QuotePDF');
+                const contractData = getContractData();
+                const pdfBlob = await generateQuotePDF(contractData);
+
+                // 2. Convert Blob to Base64
+                const reader = new FileReader();
+                reader.readAsDataURL(pdfBlob);
+                reader.onloadend = async () => {
+                    const base64data = reader.result?.toString().split(',')[1];
+                    if (!base64data) throw new Error('Failed to convert PDF to base64');
+
+                    // 3. Call API to create signing session
+                    const response = await fetch('/api/docuseal/init', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            documents: [{
+                                name: `Devis-${quote.id}.pdf`,
+                                file: base64data
+                            }],
+                            email: quote.client.email,
+                            name: quote.client.name
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const err = await response.json();
+                        throw new Error(err.error || 'Failed to init DocuSeal');
+                    }
+
+                    const data = await response.json();
+                    setDocuSealSrc(`https://docuseal.com/s/${data.slug}`); // Or data.url if provided
+                    setLoadingSrc(false);
+                };
+            } catch (err: any) {
+                console.error('Error initializing DocuSeal:', err);
+                // Show error but also offer fallback
+                setError(`${err.message}. Vous pouvez utiliser le modèle standard à la place.`);
+                setDocuSealSrc("https://docuseal.com/d/NaZif3BS7bNSkn"); // Fallback URL
+                setLoadingSrc(false);
+            }
         };
 
-        const blob = await generateContractPDF(contractData);
+        if (!signed) {
+            initDocuSeal();
+        }
+    }, [quote, signed]);
+
+    const handleSignComplete = (data: any) => {
+        console.log('Signature completed:', data);
+        setSigned(true);
+    };
+
+    const handleDownloadContract = async () => {
+        // Download the FINAL signed PDF from DocuSeal if possible, 
+        // OR generate a local copy with the signature image if we had it.
+        // For now, regenerating the cleaner local PDF as before.
+        const { generateQuotePDF } = await import('@/components/pdf/QuotePDF');
+        const contractData = getContractData();
+        // contractData.signedDate = ... // In a real app we'd get these from the webhook/callback data
+
+        const blob = await generateQuotePDF(contractData);
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `contrat-${quote.id}.pdf`;
+        a.download = `devis-${quote.id}-signed.pdf`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -156,16 +220,14 @@ export default function SignQuoteClient({ demoQuote: initialQuote }: { demoQuote
                     </div>
                     <h1 className="text-4xl font-bold mb-4 text-gray-900">Devis signé !</h1>
                     <p className="text-gray-600 text-lg mb-8">
-                        Merci ! Votre devis N° {quote.id} a été signé avec succès via DocuSeal.
-                        Vous recevrez une copie par email.
+                        Merci ! Votre devis N° {quote.id} a été signé avec succès.
+                        Une copie vous a été envoyée par email.
                     </p>
 
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
-                        <button onClick={handleDownloadContract} className="btn btn-primary">
-                            <FileText size={20} />
-                            Télécharger mon contrat
-                        </button>
-                    </div>
+                    <button onClick={handleDownloadContract} className="btn btn-primary">
+                        <FileText size={20} />
+                        Télécharger le devis signé
+                    </button>
                 </div>
             </section>
         );
@@ -237,23 +299,26 @@ export default function SignQuoteClient({ demoQuote: initialQuote }: { demoQuote
                                     <span>Total TTC</span>
                                     <span>{(quote.total * 1.17).toFixed(2)} €</span>
                                 </div>
-                                <p className="text-xs text-gray-400 mt-1">Dont TVA (17%) : {(quote.total * 0.17).toFixed(2)} €</p>
+                                <p className="text-xs text-gray-400 mt-1">Dont TVA (17%)</p>
                             </div>
                         </div>
                     </div>
 
-                    {/* DocuSeal Form */}
+                    {/* DocuSeal Form - Dynamic Loading */}
                     <div className="card min-h-[400px] flex items-center justify-center bg-white p-0 overflow-hidden relative">
-                        {error && (
+                        {error ? (
                             <div className="p-8 text-center text-red-500">
                                 <p>Erreur: {error}</p>
                             </div>
-                        )}
-
-                        {!error && (
+                        ) : loadingSrc ? (
+                            <div className="flex flex-col items-center justify-center p-8 text-gray-400">
+                                <Loader2 size={32} className="animate-spin mb-4 text-[#0D7377]" />
+                                <p>Génération du contrat en cours...</p>
+                            </div>
+                        ) : (
                             <div className="w-full h-full min-h-[600px]">
                                 <DocusealForm
-                                    src={docuSealSrc}
+                                    src={docuSealSrc || ''}
                                     email={quote.client.email}
                                     onComplete={handleSignComplete}
                                 />

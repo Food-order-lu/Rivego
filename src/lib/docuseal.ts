@@ -5,8 +5,26 @@ export interface DocuSealSubmitter {
   name?: string;
 }
 
+export interface DocuSealField {
+  name: string;
+  type: 'signature' | 'text' | 'date' | 'initials';
+  page?: number;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  required?: boolean;
+}
+
+export interface DocuSealDocument {
+  name: string;
+  file: string; // Base64 encoded content
+  fields?: DocuSealField[];
+}
+
 export interface DocuSealSubmissionData {
-  template_id: string;
+  template_id?: string;
+  documents?: DocuSealDocument[];
   send_email: boolean;
   submitters: DocuSealSubmitter[];
 }
@@ -58,20 +76,76 @@ export class DocuSealClient {
   }
 
   /**
-   * Helper to initialize a submission for a specific template
+   * Create a template from a PDF file
    */
-  async initSigningSession(templateId: string, email: string, name?: string) {
-    return this.createSubmission({
+  async createTemplateFromPdf(pdfBase64: string, name: string): Promise<{ id: number; slug: string }> {
+    if (!this.apiKey) {
+      throw new Error('DOCUSEAL_API_KEY is not configured');
+    }
+
+    try {
+      console.log('Creating DocuSeal Template from PDF:', name);
+      const response = await fetch(`${this.baseUrl}/templates/pdf`, {
+        method: 'POST',
+        headers: {
+          'X-Auth-Token': this.apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: name,
+          documents: [{
+            name: name,
+            file: pdfBase64
+          }]
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('DocuSeal Template Creation Error:', errorText);
+        throw new Error(`Failed to create template: ${response.status} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('Template created:', result);
+      return result;
+    } catch (error) {
+      console.error('DocuSeal Template Error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Helper to initialize a submission - optionally creates template from PDF first
+   */
+  async initSigningSession(data: { templateId?: string, documents?: DocuSealDocument[], email: string, name?: string }) {
+    if (!data.templateId && !data.documents) {
+      throw new Error("Must provide either templateId or documents");
+    }
+
+    let templateId = data.templateId;
+
+    // If documents provided, create a template first
+    if (data.documents && data.documents.length > 0 && !templateId) {
+      const doc = data.documents[0];
+      const template = await this.createTemplateFromPdf(doc.file, doc.name);
+      templateId = template.id.toString();
+      console.log('Using new template ID:', templateId);
+    }
+
+    // Now create submission with the template_id
+    const payload: DocuSealSubmissionData = {
       template_id: templateId,
-      send_email: false, // We create the signing session for embedding
+      send_email: false,
       submitters: [
         {
-          email,
-          name,
-          role: 'Signer', // Default role, adjust as per template
+          email: data.email,
+          name: data.name,
         },
       ],
-    });
+    };
+
+    return this.createSubmission(payload);
   }
 }
 
